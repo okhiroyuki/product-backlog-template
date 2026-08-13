@@ -24,13 +24,18 @@ var BACKLOG_COLUMNS = {
   POINT: 8,
   PRD: 9,
   JIRA: 10,
+  BUKO: 11,
 };
-var BACKLOG_COLUMN_COUNT = 10;
+var BACKLOG_COLUMN_COUNT = 11;
 
 /** ステータス・着手可能性・ポイントのプルダウン選択肢 */
 var STATUS_OPTIONS = ['Open', 'In Sprint', 'Done', 'Closed'];
 var DOABLE_OPTIONS = ['Ready', 'Not Ready'];
 var POINT_OPTIONS = ['1', '2', '3', '5', '8'];
+
+/** 条件付き書式の背景色マップ（キーはプルダウン選択肢の値。Open は無着色）。 */
+var DOABLE_COLORS = { 'Ready': '#d9ead3', 'Not Ready': '#fff2cc' };
+var STATUS_COLORS = { 'In Sprint': '#cfe2f3', 'Done': '#d9ead3', 'Closed': '#d9d9d9' };
 
 /**
  * バックログシートを 1 つ展開する。シート名はダイアログで確認する。
@@ -59,6 +64,8 @@ function createBacklogSheet() {
 
   SpreadsheetApp.flush();
   applyAllReferenceValidations_(ss);
+  SpreadsheetApp.flush();
+  applyReferenceColorFormats_(ss);
   SpreadsheetApp.flush();
   syncIdCountersFromBookCore(ss);
   SpreadsheetApp.flush();
