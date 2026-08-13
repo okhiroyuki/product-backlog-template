@@ -5,19 +5,27 @@ function setupBacklogSheet(ss, sheetName, isNew) {
   let sh = getOrCreateSheet(ss, sheetName);
   if (isNew) {
     resetSheetCellsForTemplate_(sh, 500, BACKLOG_COLUMN_COUNT);
-    sh.getRange(1, 1, 1, BACKLOG_COLUMN_COUNT).setValues([
-      ['ID', 'テーマ', 'ステータス', '着手可能性', '誰が', '何をしたい', 'それはなぜか（価値）', 'ポイント', 'PRD', 'JIRA', '備考'],
-    ]);
-    styleHeader(sh, 1, BACKLOG_COLUMN_COUNT);
-    setColWidths(sh, [90, 140, 100, 100, 120, 340, 340, 70, 90, 110, 200]);
-    sh.getRange(2, 1, 100, BACKLOG_COLUMN_COUNT).setWrap(true);
+    applyBacklogTemplateLayout_(sh);
     seedBacklogSampleRow_(sh);
-  }
-  if (!isNew) {
-    sh.getRange(1, BACKLOG_COLUMNS.BUKO).setValue('備考');
-    sh.setColumnWidth(BACKLOG_COLUMNS.BUKO, 200);
+  } else {
+    applyBacklogTemplateLayout_(sh);
   }
   return sh;
+}
+
+/**
+ * ヘッダー・見出し書式・列幅・折り返しなど「テンプレートの見た目」を適用する（非破壊）。
+ * 2 行目以降のデータ値は変更しない。既存シートへの再反映にも使う。
+ */
+function applyBacklogTemplateLayout_(sh) {
+  sh.getRange(1, 1, 1, BACKLOG_COLUMN_COUNT).setValues([BACKLOG_HEADERS]);
+  styleHeader(sh, 1, BACKLOG_COLUMN_COUNT);
+  setColWidths(sh, BACKLOG_COLUMN_WIDTHS);
+  let lastRow = sh.getLastRow();
+  let wrapRows = Math.min(Math.max(lastRow - 1, 100), sh.getMaxRows() - 1);
+  if (wrapRows > 0) {
+    sh.getRange(2, 1, wrapRows, BACKLOG_COLUMN_COUNT).setWrap(true);
+  }
 }
 
 /** 初期サンプル行（ダミー値・1 行だけ）。 */
