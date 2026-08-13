@@ -22,32 +22,36 @@ function applyRowValidations_(sh, row) {
 
 /** 全バックログシートの着手可能性・ステータス列に条件付き書式（背景色マップ）を適用する。 */
 function applyReferenceColorFormats_(ss) {
-  applyColumnColorFormats_(ss, BACKLOG_COLUMNS.DOABLE, DOABLE_COLORS);
-  applyColumnColorFormats_(ss, BACKLOG_COLUMNS.STATUS, STATUS_COLORS);
-}
-
-/** 指定列の背景色マップに基づく条件付き書式を全バックログシートへ適用する。 */
-function applyColumnColorFormats_(ss, col, colorMap) {
+  let columnColorMaps = [
+    { col: BACKLOG_COLUMNS.DOABLE, colorMap: DOABLE_COLORS },
+    { col: BACKLOG_COLUMNS.STATUS, colorMap: STATUS_COLORS },
+  ];
   let names = getBacklogSheetNames_(ss);
   for (let i = 0; i < names.length; i++) {
     let sh = ss.getSheetByName(names[i]);
     if (!sh) continue;
-    applyColumnColorFormat_(sh, col, colorMap);
+    applyColumnColorFormats_(sh, columnColorMaps);
   }
 }
 
-/** 1 シート・1 列分の条件付き書式を適用する（値の一致で背景色を変える）。 */
-function applyColumnColorFormat_(sh, col, colorMap) {
-  const range = sh.getRange(2, col, sh.getMaxRows() - 1, 1);
+/**
+ * 1 シートへ複数列分の条件付き書式をまとめて適用する。
+ * setConditionalFormatRules はシート全体を置き換えるため、
+ * 全列のルールを 1 回で設定して上書き消失を防ぐ。
+ */
+function applyColumnColorFormats_(sh, columnColorMaps) {
   const rules = [];
-  Object.keys(colorMap).forEach(function (value) {
-    rules.push(
-      SpreadsheetApp.newConditionalFormatRule()
-        .whenTextEqualTo(value)
-        .setBackground(colorMap[value])
-        .setRanges([range])
-        .build()
-    );
+  columnColorMaps.forEach(function (entry) {
+    const range = sh.getRange(2, entry.col, sh.getMaxRows() - 1, 1);
+    Object.keys(entry.colorMap).forEach(function (value) {
+      rules.push(
+        SpreadsheetApp.newConditionalFormatRule()
+          .whenTextEqualTo(value)
+          .setBackground(entry.colorMap[value])
+          .setRanges([range])
+          .build()
+      );
+    });
   });
   sh.setConditionalFormatRules(rules);
 }
