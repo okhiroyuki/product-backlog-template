@@ -20,6 +20,48 @@ function applyRowValidations_(sh, row) {
   setDropdown(sh, row, BACKLOG_COLUMNS.POINT, POINT_OPTIONS);
 }
 
+/**
+ * メニュー「🔁 テンプレートを既存シートへ再反映」用。
+ * 既存データ（2 行目以降の値）は保持したまま、最新のテンプレートを入れ直す。
+ * 反映対象: ヘッダー名・見出し書式・列幅・折り返し・入力規則・条件付き書式。
+ * 開いているシートが未登録のバックログ相当なら 🔢 ID管理 に登録して対象に含める。
+ */
+function refreshBacklogTemplates() {
+  let ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  let active = ss.getActiveSheet();
+  if (active && active.getName() !== ID_SHEET_NAME) {
+    registerSheetIfNeeded_(ss, active.getName());
+  }
+
+  let names = getBacklogSheetNames_(ss);
+  if (names.length === 0) {
+    notifyUser_(
+      '🔢 ID管理 にバックログシートが 1 件も登録されていないため、適用対象がありません。\n' +
+        '反映したいシートを開いた状態で、もう一度このメニューを実行してください。',
+      '再反映'
+    );
+    return;
+  }
+
+  for (let i = 0; i < names.length; i++) {
+    let sh = ss.getSheetByName(names[i]);
+    if (sh) applyBacklogTemplateLayout_(sh);
+  }
+  SpreadsheetApp.flush();
+  applyAllReferenceValidations_(ss);
+  SpreadsheetApp.flush();
+  applyReferenceColorFormats_(ss);
+  SpreadsheetApp.flush();
+  syncIdCountersFromBookCore(ss);
+  SpreadsheetApp.flush();
+
+  notifyUser_(
+    'テンプレートを再反映しました（データは保持）。\n\n対象シート: ' + names.join('、'),
+    '再反映'
+  );
+}
+
 /** 全バックログシートの着手可能性・ステータス列に条件付き書式（背景色マップ）を適用する。 */
 function applyReferenceColorFormats_(ss) {
   let columnColorMaps = [
