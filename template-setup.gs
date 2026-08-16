@@ -33,16 +33,27 @@ var BACKLOG_COLUMN_COUNT = 12;
 var BACKLOG_HEADERS = ['ID', 'テーマ', '種別', 'ステータス', '着手可能性', '誰が', '何をしたい', 'それはなぜか（価値）', 'ポイント', 'PRD', 'JIRA', '備考'];
 
 /** 列幅（px, 列順）。 */
-var BACKLOG_COLUMN_WIDTHS = [90, 140, 110, 100, 100, 120, 340, 340, 70, 90, 110, 200];
+var BACKLOG_COLUMN_WIDTHS = [90, 140, 220, 100, 100, 120, 340, 340, 70, 90, 110, 200];
 
 /** ステータス・着手可能性・ポイントのプルダウン選択肢 */
-var TYPE_OPTIONS = ['User Story', 'Enabler'];
+var TYPE_OPTIONS = [
+  'User Story',
+  'Enabler:探索・検証',
+  'Enabler:アーキテクチャ',
+  'Enabler:インフラ',
+  'Enabler:コンプライアンス・運用体制',
+];
 var STATUS_OPTIONS = ['Open', 'In Sprint', 'Done', 'Closed'];
 var DOABLE_OPTIONS = ['Ready', 'Not Ready'];
 var POINT_OPTIONS = ['1', '2', '3', '5', '8'];
 
 /** 条件付き書式の背景色マップ（キーはプルダウン選択肢の値）。 */
-var TYPE_COLORS = { 'Enabler': '#d9d2e9' };
+var TYPE_COLORS = {
+  'Enabler:探索・検証': '#d9d2e9',
+  'Enabler:アーキテクチャ': '#d9d2e9',
+  'Enabler:インフラ': '#d9d2e9',
+  'Enabler:コンプライアンス・運用体制': '#d9d2e9',
+};
 var DOABLE_COLORS = { 'Ready': '#d9ead3', 'Not Ready': '#fff2cc' };
 var STATUS_COLORS = { 'Open': '#fff2cc', 'In Sprint': '#cfe2f3', 'Done': '#d9ead3', 'Closed': '#d9d9d9' };
 
