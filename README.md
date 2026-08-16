@@ -67,7 +67,7 @@ pnpm exec clasp push --force
 
 | ファイル | 役割 |
 |----------|------|
-| [`google-sheets-guide.md`](google-sheets-guide.md) | ブックの**編集・運用**、**ID** など。 |
+| [`google-sheets-guide.md`](google-sheets-guide.md) | ブックの**編集・運用**、**バックログ整理ガイドライン**、**ID** など。 |
 | [`template-setup.gs`](template-setup.gs) | 定数、`createBacklogSheet`（シート名指定での展開処理）、共通UIヘルパー。**テンプレ全体の入口**。 |
 | [`backlog-sheets.gs`](backlog-sheets.gs) | バックログシートのヘッダー・列幅・初期サンプル行の定義。 |
 | [`ids.gs`](ids.gs) | 🔢 ID管理 シートの読み書き、シートごとの ID 採番、`onEdit` による自動採番。 |
