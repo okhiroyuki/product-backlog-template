@@ -16,30 +16,33 @@ var ID_SHEET_NAME = '🔢 ID管理';
 var BACKLOG_COLUMNS = {
   ID: 1,
   THEME: 2,
-  STATUS: 3,
-  DOABLE: 4,
-  WHO: 5,
-  WHAT: 6,
-  WHY: 7,
-  POINT: 8,
-  PRD: 9,
-  JIRA: 10,
-  BUKO: 11,
+  TYPE: 3,
+  STATUS: 4,
+  DOABLE: 5,
+  WHO: 6,
+  WHAT: 7,
+  WHY: 8,
+  POINT: 9,
+  PRD: 10,
+  JIRA: 11,
+  BUKO: 12,
 };
-var BACKLOG_COLUMN_COUNT = 11;
+var BACKLOG_COLUMN_COUNT = 12;
 
 /** ヘッダー行のラベル（列順）。列名を変えるときはここを変更する。 */
-var BACKLOG_HEADERS = ['ID', 'テーマ', 'ステータス', '着手可能性', '誰が', '何をしたい', 'それはなぜか（価値）', 'ポイント', 'PRD', 'JIRA', '備考'];
+var BACKLOG_HEADERS = ['ID', 'テーマ', '種別', 'ステータス', '着手可能性', '誰が', '何をしたい', 'それはなぜか（価値）', 'ポイント', 'PRD', 'JIRA', '備考'];
 
 /** 列幅（px, 列順）。 */
-var BACKLOG_COLUMN_WIDTHS = [90, 140, 100, 100, 120, 340, 340, 70, 90, 110, 200];
+var BACKLOG_COLUMN_WIDTHS = [90, 140, 110, 100, 100, 120, 340, 340, 70, 90, 110, 200];
 
 /** ステータス・着手可能性・ポイントのプルダウン選択肢 */
+var TYPE_OPTIONS = ['User Story', 'Enabler'];
 var STATUS_OPTIONS = ['Open', 'In Sprint', 'Done', 'Closed'];
 var DOABLE_OPTIONS = ['Ready', 'Not Ready'];
 var POINT_OPTIONS = ['1', '2', '3', '5', '8'];
 
 /** 条件付き書式の背景色マップ（キーはプルダウン選択肢の値）。 */
+var TYPE_COLORS = { 'Enabler': '#d9d2e9' };
 var DOABLE_COLORS = { 'Ready': '#d9ead3', 'Not Ready': '#fff2cc' };
 var STATUS_COLORS = { 'Open': '#fff2cc', 'In Sprint': '#cfe2f3', 'Done': '#d9ead3', 'Closed': '#d9d9d9' };
 

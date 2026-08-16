@@ -32,7 +32,7 @@ function applyBacklogTemplateLayout_(sh) {
 function seedBacklogSampleRow_(sh) {
   if (sh.getLastRow() < 2) {
     sh.getRange(2, 1, 1, BACKLOG_COLUMN_COUNT).setValues([
-      ['PBL-001', 'サンプルテーマ', 'Open', 'Not Ready', 'サンプル担当',
+      ['PBL-001', 'サンプルテーマ', 'User Story', 'Open', 'Not Ready', 'サンプル担当',
         'サンプルの機能を実装したい。',
         'テンプレートの動作を確認したいから。',
         '3', '', '', '詳細はPRDを参照。'],

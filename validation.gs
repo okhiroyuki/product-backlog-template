@@ -13,8 +13,9 @@ function applyAllReferenceValidations_(ss) {
   }
 }
 
-/** 1 行分の入力規則（ステータス・着手可能性・ポイント）を適用する。 */
+/** 1 行分の入力規則（種別・ステータス・着手可能性・ポイント）を適用する。 */
 function applyRowValidations_(sh, row) {
+  setDropdown(sh, row, BACKLOG_COLUMNS.TYPE, TYPE_OPTIONS);
   setDropdown(sh, row, BACKLOG_COLUMNS.STATUS, STATUS_OPTIONS);
   setDropdown(sh, row, BACKLOG_COLUMNS.DOABLE, DOABLE_OPTIONS);
   setDropdown(sh, row, BACKLOG_COLUMNS.POINT, POINT_OPTIONS);
@@ -62,9 +63,10 @@ function refreshBacklogTemplates() {
   );
 }
 
-/** 全バックログシートの着手可能性・ステータス列に条件付き書式（背景色マップ）を適用する。 */
+/** 全バックログシートの種別・着手可能性・ステータス列に条件付き書式（背景色マップ）を適用する。 */
 function applyReferenceColorFormats_(ss) {
   let columnColorMaps = [
+    { col: BACKLOG_COLUMNS.TYPE, colorMap: TYPE_COLORS },
     { col: BACKLOG_COLUMNS.DOABLE, colorMap: DOABLE_COLORS },
     { col: BACKLOG_COLUMNS.STATUS, colorMap: STATUS_COLORS },
   ];
