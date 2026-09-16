@@ -1,27 +1,35 @@
 /**
  * プロダクトバックログ管理 — テンプレート自動生成（定数・共通UIヘルパー）
  *
- * Apps Script プロジェクトには本ファイルのほか、backlog-sheets.gs / ids.gs /
- * validation.gs を同じプロジェクトに追加する
+ * Apps Script プロジェクトには本ファイルのほか、backlog-sheets.gs / epic-sheets.gs /
+ * ids.gs / validation.gs を同じプロジェクトに追加する
  * （同一プロジェクト内ではファイルをまたいで関数・var を共有できるため import は不要）。
  *
- * 関数「createBacklogSheet」を実行すると、シート名を確認して 1 つのバックログシートを展開する。
- * 何度でも実行でき、シート名を変えることで 1 つのスプレッドシートに複数のバックログを管理できる。
+ * 関数「createBacklogSheet」を実行すると、プロダクト名を確認して
+ * バックログ_{名前} と エピック_{名前} の 2 シートを展開する。
+ * 何度でも実行でき、名前を変えることで 1 つのスプレッドシートに複数のバックログを管理できる。
  * 同名シートが既にある場合は上書きせず、入力規則の適用とIDカウンタ同期のみを行う。
  */
 
 var ID_SHEET_NAME = '🔢 ID管理';
+/** 旧テンプレのブック共通 Epic シート名（後方互換）。 */
+var LEGACY_EPIC_SHEET_NAME = 'Epic';
+var BACKLOG_SHEET_PREFIX = 'バックログ_';
+var EPIC_SHEET_PREFIX = 'エピック_';
+/** 旧接頭辞（後方互換）。 */
+var LEGACY_BACKLOG_SHEET_PREFIX = 'PBL_';
+var LEGACY_EPIC_SHEET_PREFIX = 'Epic_';
 
 /** バックログの列定義（1始まり）。列構成を変えるときはここを変更する。 */
 var BACKLOG_COLUMNS = {
   ID: 1,
-  THEME: 2,
-  TYPE: 3,
-  STATUS: 4,
-  DOABLE: 5,
-  WHO: 6,
-  WHAT: 7,
-  WHY: 8,
+  EPIC: 2,
+  STATUS: 3,
+  DOABLE: 4,
+  WHO: 5,
+  WHAT: 6,
+  WHY: 7,
+  AC: 8,
   POINT: 9,
   PRD: 10,
   JIRA: 11,
@@ -30,36 +38,103 @@ var BACKLOG_COLUMNS = {
 var BACKLOG_COLUMN_COUNT = 12;
 
 /** ヘッダー行のラベル（列順）。列名を変えるときはここを変更する。 */
-var BACKLOG_HEADERS = ['ID', 'テーマ', '種別', 'ステータス', '着手可能性', '誰が', '何をしたい', 'それはなぜか（価値）', 'ポイント', 'PRD', 'JIRA', '備考'];
+var BACKLOG_HEADERS = ['ID', 'Epic', 'ステータス', '着手可能性', '誰が', '何をしたい', 'それはなぜか（価値）', '受け入れ条件（AC）', 'ポイント', 'PRD', 'JIRA', '備考'];
 
 /** 列幅（px, 列順）。 */
-var BACKLOG_COLUMN_WIDTHS = [90, 140, 220, 100, 100, 120, 340, 340, 70, 90, 110, 200];
+var BACKLOG_COLUMN_WIDTHS = [90, 140, 100, 100, 120, 340, 340, 340, 70, 90, 110, 200];
+
+/**
+ * Epic シートの列定義（1始まり）。
+ * ID / Epic名 / PRD / JIRA / 備考。
+ */
+var EPIC_COLUMNS = {
+  ID: 1,
+  NAME: 2,
+  PRD: 3,
+  JIRA: 4,
+  BUKO: 5,
+};
+var EPIC_COLUMN_COUNT = 5;
+
+/** Epic シートのヘッダー行のラベル（列順）。 */
+var EPIC_HEADERS = ['ID', 'Epic名', 'PRD', 'JIRA', '備考'];
+
+/** Epic シートの列幅（px, 列順）。 */
+var EPIC_COLUMN_WIDTHS = [90, 200, 90, 110, 200];
 
 /** ステータス・着手可能性・ポイントのプルダウン選択肢 */
-var TYPE_OPTIONS = [
-  'User Story',
-  'Enabler:探索・検証',
-  'Enabler:アーキテクチャ',
-  'Enabler:インフラ',
-  'Enabler:コンプライアンス・運用体制',
-];
 var STATUS_OPTIONS = ['Open', 'In Sprint', 'Done', 'Closed'];
 var DOABLE_OPTIONS = ['Ready', 'Not Ready'];
 var POINT_OPTIONS = ['1', '2', '3', '5', '8'];
 
 /** 条件付き書式の背景色マップ（キーはプルダウン選択肢の値）。 */
-var TYPE_COLORS = {
-  'Enabler:探索・検証': '#d9d2e9',
-  'Enabler:アーキテクチャ': '#d9d2e9',
-  'Enabler:インフラ': '#d9d2e9',
-  'Enabler:コンプライアンス・運用体制': '#d9d2e9',
-};
 var DOABLE_COLORS = { 'Ready': '#d9ead3', 'Not Ready': '#fff2cc' };
 var STATUS_COLORS = { 'Open': '#fff2cc', 'In Sprint': '#cfe2f3', 'Done': '#d9ead3', 'Closed': '#d9d9d9' };
 
+/** プロダクト名からバックログ / エピック シート名を組み立てる。 */
+function buildBacklogSheetName_(baseName) {
+  return BACKLOG_SHEET_PREFIX + baseName;
+}
+function buildEpicSheetName_(baseName) {
+  return EPIC_SHEET_PREFIX + baseName;
+}
+
+/** エピックシート名かどうか（エピック_… / 旧 Epic_… / 旧「Epic」）。 */
+function isEpicSheetName_(sheetName) {
+  let n = String(sheetName || '');
+  return (
+    n === LEGACY_EPIC_SHEET_NAME ||
+    n.indexOf(EPIC_SHEET_PREFIX) === 0 ||
+    n.indexOf(LEGACY_EPIC_SHEET_PREFIX) === 0
+  );
+}
+
 /**
- * バックログシートを 1 つ展開する。シート名はダイアログで確認する。
- * シート名を変えて再実行すると、同じブックに複数のバックログを追加できる。
+ * バックログシート名から接頭辞で導けるエピックシート名を返す。
+ * バックログ_foo → エピック_foo。PBL_foo → Epic_foo（旧）。導けなければ空文字。
+ */
+function derivedEpicSheetName_(backlogSheetName) {
+  let n = String(backlogSheetName || '');
+  if (n.indexOf(BACKLOG_SHEET_PREFIX) === 0) {
+    return EPIC_SHEET_PREFIX + n.substring(BACKLOG_SHEET_PREFIX.length);
+  }
+  if (n.indexOf(LEGACY_BACKLOG_SHEET_PREFIX) === 0) {
+    return LEGACY_EPIC_SHEET_PREFIX + n.substring(LEGACY_BACKLOG_SHEET_PREFIX.length);
+  }
+  return '';
+}
+
+/**
+ * 参照用に、バックログシートに対応する既存のエピックシート名を返す。
+ * 接頭辞から導けない旧シートは、旧「Epic」が実在するときだけそれを使う。
+ * 見つからなければ空文字を返す（呼び出し側で新規作成しないため）。
+ */
+function epicSheetNameForBacklog_(ss, backlogSheetName) {
+  let derived = derivedEpicSheetName_(backlogSheetName);
+  if (derived) return derived;
+  return ss.getSheetByName(LEGACY_EPIC_SHEET_NAME) ? LEGACY_EPIC_SHEET_NAME : '';
+}
+
+/** 既存シートがバックログシートの体裁（A1 が ID）かどうか。 */
+function looksLikeBacklogSheet_(sh) {
+  if (!sh || sh.getLastRow() < 1 || sh.getLastColumn() < 1) return false;
+  return String(sh.getRange(1, 1).getValue()).trim() === BACKLOG_HEADERS[0];
+}
+
+/** ブック内のエピックシート名一覧。 */
+function getEpicSheetNames_(ss) {
+  let sheets = ss.getSheets();
+  let names = [];
+  for (let i = 0; i < sheets.length; i++) {
+    let n = sheets[i].getName();
+    if (isEpicSheetName_(n)) names.push(n);
+  }
+  return names;
+}
+
+/**
+ * バックログシートを 1 組展開する。プロダクト名はダイアログで確認する。
+ * バックログ_{名前} と エピック_{名前} を作成する。名前を変えて再実行すると複数組を追加できる。
  */
 function createBacklogSheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -73,14 +148,20 @@ function createBacklogSheet() {
 
   setupIdSheetHeaderOnly_(ss);
 
-  const sheetName = promptForBacklogSheetName_(ss);
-  if (!sheetName) return;
+  const baseName = promptForProductBaseName_(ss);
+  if (!baseName) return;
 
-  const existing = ss.getSheetByName(sheetName);
-  const isNew = !existing;
+  const backlogName = buildBacklogSheetName_(baseName);
+  const epicName = buildEpicSheetName_(baseName);
 
-  setupBacklogSheet(ss, sheetName, isNew);
-  registerSheetIfNeeded_(ss, sheetName);
+  const backlogExisting = ss.getSheetByName(backlogName);
+  const epicExisting = ss.getSheetByName(epicName);
+  const backlogIsNew = !backlogExisting;
+  const epicIsNew = !epicExisting;
+
+  setupEpicSheet(ss, epicName, epicIsNew);
+  setupBacklogSheet(ss, backlogName, backlogIsNew);
+  registerSheetIfNeeded_(ss, backlogName);
 
   SpreadsheetApp.flush();
   applyAllReferenceValidations_(ss);
@@ -91,11 +172,13 @@ function createBacklogSheet() {
   SpreadsheetApp.flush();
   reorderBacklogTabs_(ss);
 
-  ss.setActiveSheet(ss.getSheetByName(sheetName));
+  ss.setActiveSheet(ss.getSheetByName(backlogName));
 
-  const msg = isNew
-    ? '✅ バックログシート「' + sheetName + '」を作成しました！\n\nプルダウン・ID自動採番が使えます。'
-    : '✅ 既存のバックログシート「' + sheetName + '」を検出したため、データは保持したまま入力規則とIDカウンタを更新しました。';
+  const msg = backlogIsNew || epicIsNew
+    ? '✅ シートを用意しました！\n\n・' + backlogName + (backlogIsNew ? '（新規）' : '（既存・保持）') +
+      '\n・' + epicName + (epicIsNew ? '（新規）' : '（既存・保持）') +
+      '\n\nプルダウン・ID自動採番が使えます。'
+    : '✅ 既存の「' + backlogName + '」「' + epicName + '」を検出したため、データは保持したまま入力規則とIDカウンタを更新しました。';
   try {
     SpreadsheetApp.getUi().alert(msg);
   } catch (ignore) {
@@ -103,26 +186,46 @@ function createBacklogSheet() {
   }
 }
 
-/** ダイアログでバックログシート名を入力してもらう。キャンセル時は null。 */
-function promptForBacklogSheetName_(ss) {
+/**
+ * ダイアログでプロダクト名（バックログ_ / エピック_ の共通部分）を入力してもらう。キャンセル時は null。
+ * 先頭の接頭辞（新旧）は除去する。
+ */
+function promptForProductBaseName_(ss) {
   const ui = SpreadsheetApp.getUi();
   const result = ui.prompt(
-    'バックログシートの名前',
-    '新しいバックログシートの名前を入力してください。\n（例：レセハブアプリ、管理コンソール）',
+    'プロダクト名',
+    '共通の名前を入力してください。\n' +
+      'バックログ_名前 と エピック_名前 の 2 シートを作成します。\n' +
+      '（例：レセハブアプリ → バックログ_レセハブアプリ / エピック_レセハブアプリ）',
     ui.ButtonSet.OK_CANCEL
   );
   if (result.getSelectedButton() !== ui.Button.OK) return null;
-  const name = String(result.getResponseText()).trim();
+  let name = String(result.getResponseText()).trim();
+  const prefixes = [
+    BACKLOG_SHEET_PREFIX,
+    EPIC_SHEET_PREFIX,
+    LEGACY_BACKLOG_SHEET_PREFIX,
+    LEGACY_EPIC_SHEET_PREFIX,
+  ];
+  for (let i = 0; i < prefixes.length; i++) {
+    if (name.indexOf(prefixes[i]) === 0) {
+      name = name.substring(prefixes[i].length);
+      break;
+    }
+  }
+  name = name.trim();
   if (!name) {
-    notifyUser_('シート名が空です。', '名前');
+    notifyUser_('名前が空です。', '名前');
     return null;
   }
   if (/[:\\\/\?\*\[\]]/.test(name)) {
-    notifyUser_('シート名に使用できない文字（: \\ / ? * [ ]）が含まれています。', '名前');
+    notifyUser_('名前に使用できない文字（: \\ / ? * [ ]）が含まれています。', '名前');
     return null;
   }
-  if (name.length > 100) {
-    notifyUser_('シート名は 100 文字以内にしてください。', '名前');
+  const backlogName = buildBacklogSheetName_(name);
+  const epicName = buildEpicSheetName_(name);
+  if (backlogName.length > 100 || epicName.length > 100) {
+    notifyUser_('シート名は 100 文字以内にしてください（接頭辞 バックログ_ / エピック_ を含む）。', '名前');
     return null;
   }
   return name;
@@ -146,22 +249,44 @@ function resetSheetCellsForTemplate_(sh, maxRows, maxCols) {
   }
 }
 
-/** タブ順を整える（バックログシートを先頭に、🔢 ID管理 を最後に）。 */
+/** タブ順を整える（バックログ → 対応エピックをペアで並べ、最後に 🔢 ID管理）。 */
 function reorderBacklogTabs_(ss) {
   let names = getBacklogSheetNames_(ss);
+  let placed = {};
   let pos = 1;
   for (let i = 0; i < names.length; i++) {
-    let sh = ss.getSheetByName(names[i]);
-    if (sh) {
-      ss.setActiveSheet(sh);
+    let pblSh = ss.getSheetByName(names[i]);
+    if (pblSh) {
+      ss.setActiveSheet(pblSh);
       ss.moveActiveSheet(pos);
+      placed[names[i]] = true;
       pos++;
     }
+    let epicName = epicSheetNameForBacklog_(ss, names[i]);
+    let epicSh = epicName ? ss.getSheetByName(epicName) : null;
+    if (epicSh) {
+      ss.setActiveSheet(epicSh);
+      ss.moveActiveSheet(pos);
+      placed[epicName] = true;
+      pos++;
+    }
+  }
+  let epicNames = getEpicSheetNames_(ss);
+  for (let i = 0; i < epicNames.length; i++) {
+    if (placed[epicNames[i]]) continue;
+    let orphan = ss.getSheetByName(epicNames[i]);
+    if (!orphan) continue;
+    ss.setActiveSheet(orphan);
+    ss.moveActiveSheet(pos);
+    pos++;
   }
   let idSh = ss.getSheetByName(ID_SHEET_NAME);
   if (idSh) {
     ss.setActiveSheet(idSh);
     ss.moveActiveSheet(ss.getNumSheets());
+    try {
+      idSh.hideSheet();
+    } catch (e) {}
   }
 }
 
