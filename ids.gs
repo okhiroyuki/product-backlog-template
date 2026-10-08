@@ -159,8 +159,10 @@ function formatBacklogId(num) {
 /**
  * 編集時に自動発火するトリガー。
  * 登録済みのバックログ／Epic シートのデータ行に ID がなく内容が入っている場合、自動採番する。
+ * 選択肢はテンプレートの固定リストで上書きしない。直前に内容がある行の書式と入力規則だけをコピーし、値はコピーしない。
  */
 function onEdit(e) {
+  if (!e || !e.range) return;
   const range = e.range;
   const sheet = range.getSheet();
   const sheetName = sheet.getName();
@@ -174,8 +176,9 @@ function onEdit(e) {
   if (!isEpic && !isBacklog) return;
 
   const idCol = isEpic ? EPIC_COLUMNS.ID : BACKLOG_COLUMNS.ID;
-  const colCount = isEpic ? EPIC_COLUMN_COUNT : BACKLOG_COLUMN_COUNT;
   const prefix = isEpic ? 'EPC' : 'PBL';
+  const minCols = isEpic ? EPIC_COLUMN_COUNT : BACKLOG_COLUMN_COUNT;
+  const colCount = Math.max(sheet.getLastColumn(), minCols, 1);
 
   const idCell = sheet.getRange(row, idCol);
   if (String(idCell.getValue()).trim() !== '') return;
@@ -187,16 +190,55 @@ function onEdit(e) {
   if (!hasContent) return;
 
   try {
+    inheritRowFormatFromNearest_(sheet, row, colCount);
+  } catch (err) {
+    Logger.log('onEdit: 書式のコピーに失敗しました。 ' + (err && err.message ? err.message : err));
+  }
+
+  try {
     const id = issueNextId(e.source, sheetName, prefix);
     idCell.setValue(id);
-    if (!isEpic) {
-      applyRowValidations_(
-        sheet,
-        row,
-        getEpicNameRange_(e.source, epicSheetNameForBacklog_(e.source, sheetName))
-      );
-    }
   } catch (err) {
     Logger.log('onEdit: ID採番に失敗しました。 ' + (err && err.message ? err.message : err));
   }
+}
+
+/**
+ * 採番する行へ、最も近い項目行の書式と入力規則だけをコピーする。
+ * テンプレート列のほか、あとから足した列も対象にする。セルの値は変えない。
+ */
+function inheritRowFormatFromNearest_(sheet, row, colCount) {
+  const sourceRow = findNearestContentRow_(sheet, row, colCount);
+  if (!sourceRow) return;
+  const source = sheet.getRange(sourceRow, 1, 1, colCount);
+  const dest = sheet.getRange(row, 1, 1, colCount);
+  source.copyTo(dest, SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
+  source.copyTo(dest, SpreadsheetApp.CopyPasteType.PASTE_DATA_VALIDATION, false);
+}
+
+/** 自分以外で、値の入っている最も近い行を返す。上が優先。見つからなければ 0。 */
+function findNearestContentRow_(sheet, row, colCount) {
+  const last = sheet.getLastRow();
+  if (last < 2 || colCount < 1) return 0;
+  const start = 2;
+  const numRows = last - start + 1;
+  if (numRows < 1) return 0;
+  const vals = sheet.getRange(start, 1, numRows, colCount).getValues();
+  const idx = row - start;
+
+  function hasContent(i) {
+    if (i < 0 || i >= vals.length) return false;
+    for (let c = 0; c < vals[i].length; c++) {
+      if (String(vals[i][c]).trim() !== '') return true;
+    }
+    return false;
+  }
+
+  for (let i = Math.min(idx, vals.length) - 1; i >= 0; i--) {
+    if (hasContent(i)) return i + start;
+  }
+  for (let i = idx + 1; i < vals.length; i++) {
+    if (hasContent(i)) return i + start;
+  }
+  return 0;
 }
